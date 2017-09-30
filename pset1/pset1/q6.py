@@ -1,3 +1,4 @@
+#!/usr/bin/python
 """Answer to Question 6
 
 File: q6.py
@@ -6,6 +7,7 @@ Uni: hg2469
 Email: hang.gao@columbia.edu
 Created Date: 09/24/2017
 """
+
 from __future__ import print_function
 
 import sys
@@ -13,13 +15,13 @@ import sys
 from collections import defaultdict
 
 from q5 import TrigramHMM
-from utils import fname, main, fext, refresh
+from utils import main, refresh
 
 
 class ReparsedHMM(TrigramHMM):
     """
     A ReparsedHMM model, inherit from TrigramHMM but reparse word divisions for
-    unseen data.
+    rare data.
     """
     def __init__(self, n=3, num_clip=5):
         super(ReparsedHMM, self).__init__(n=n)
@@ -28,9 +30,14 @@ class ReparsedHMM(TrigramHMM):
     def merge_word(self, corpus_file, num_clip):
         """
         Merge words based on a new set of rules:
-            '_ABBR_': abbreviation ...
-            ...
-        Write intermediate result file into `*.merged.dat`.
+            `_NUM_`: general numbers, e.g. 4, 1,800, .63 ...
+            `_CAP_PARTIAL_`: title-alike words with only the
+                first letter to be captital, e.g. Shi-Ting, New York, Allen ...
+            `_CAP_TOTAL_`: all-capital words, e.g. COLUMBIA, X-Y-Z ...
+            `_TIME_`: time-alike words, note it should be divided
+                from `_NUN_`, e.g. 12/42-12, 18:00 ...
+
+        Write intermediate result file into `6_0.txt`.
         Record vocabulary and tags in the training set.
 
             :corpus_file: input file stream of training corpus.
@@ -38,33 +45,6 @@ class ReparsedHMM(TrigramHMM):
 
             :return: result file of merged data.
         """
-        ruleset = {
-            '_ABBR_': [],
-            '_SPEC_': [],
-            '_NUM_': [],
-            '_CAP_PARTIAL_': [],
-            '_CAP_TOTAL_': [],
-            '_RARE_': [],
-        }
-
-        def merge_by_rule(s):
-            if len(s) >= 2 and all(w.isupper() for w in s[:-1]) \
-                    and s[-1] == '.':
-                ruleset['_ABBR_'].append(s)
-            elif all(not w.isalnum() for w in s):
-                ruleset['_SPEC_'].append(s)
-            else:
-                s = ''.join(e for e in s if e.isalnum())
-                if s.isdigit():
-                    ruleset['_NUM_'].append(s)
-                elif s.istitle():
-                    ruleset['_CAP_PARTIAL_'].append(s)
-                elif all(w.isupper() for w in s):
-                    ruleset['_CAP_TOTAL_'].append(s)
-                else:
-                    return 0
-            return 1
-
         word_counts = defaultdict(int)
         word_idx = defaultdict(list)
 
@@ -77,28 +57,61 @@ class ReparsedHMM(TrigramHMM):
             if line:
                 line = line.split(' ')
                 word, tag = ' '.join(line[:-1]), line[-1]
+                word_counts[word] += 1
                 word_idx[word].append(idx)
-                if not merge_by_rule(word):
-                    word_counts[word] += 1
                 tags.append(tag)
                 vocab.append(word)
 
-        ruleset['_RARE_'] = [w for w, c in word_counts.items() if c < num_clip]
+        word_to_merge = [w for w, c in word_counts.items() if c < num_clip]
+
+        # Start merging for the RARE words
+        ruleset = {
+            '_NUM_': [],
+            '_CAP_PARTIAL_': [],
+            '_CAP_TOTAL_': [],
+            '_TIME_': [],
+            '_OTHER_': [],
+        }
+
+        def merge_by_rule(s):
+            def isnumber(s):
+                try:
+                    s.replace(',', '')
+                    float(s)
+                    return True
+                except ValueError:
+                    return False
+
+            def istime(s):
+                try:
+                    tmp = ''.join(e for e in s if e.isalnum())
+                    float(tmp)
+                    return True
+                except ValueError:
+                    return False
+
+            if s.isupper():
+                ruleset['_CAP_TOTAL_'].append(s)
+            elif s.istitle():
+                ruleset['_CAP_PARTIAL_'].append(s)
+            elif isnumber(s):
+                ruleset['_NUM_'].append(s)
+            else:
+                if istime(s):
+                    ruleset['_TIME_'].append(s)
+                else:
+                    ruleset['_OTHER_'].append(s)
+
+        map(lambda x: merge_by_rule(x), word_to_merge)
 
         for key, words in ruleset.items():
             for word in words:
                 for idx in word_idx[word]:
                     lines[idx] = '{} {}'.format(key, lines[idx].split()[-1])
 
-        fn = fname(corpus_file.name, 'merged')
+        fn = '6_0.txt'
         with open(fn, 'w') as fout:
             fout.write('\n'.join(lines))
-
-        # print(ruleset)
-        word_to_merge = reduce(lambda x, y: x + y, ruleset.values())
-        # print(word_to_merge)
-        with open('rare.train.log', 'w') as flog:
-            flog.write('\n'.join(word_to_merge))
 
         self.vocab = set(vocab) - set(word_to_merge)
         self.vocab.update(ruleset.keys())
@@ -115,34 +128,43 @@ class ReparsedHMM(TrigramHMM):
         """
         super(ReparsedHMM, self).train(corpus_file, self.num_clip)
 
-    def eval_model(self, eval_file, ext='trivit.reparse'):
+    def eval_model(self, eval_file):
         """
         Evaluate HMM model based on evaluation file.
-        Write predict result into `*.reparse.pred`.
+        Write predict result into `6.txt`.
 
             :eval_file: input file stream of testing corpus.
-            :ext: output file extension or indicator.
         """
         def reparse(s):
-            if len(s) >= 2 and all(w.isupper() for w in s[:-1]) \
-                    and s[-1] == '.':
-                return '_ABBR_'
-            elif all(not w.isalnum() for w in s):
-                return '_SPEC_'
+            def isnumber(s):
+                try:
+                    s.replace(',', '')
+                    float(s)
+                    return True
+                except ValueError:
+                    return False
+
+            def istime(s):
+                try:
+                    tmp = ''.join(e for e in s if e.isalnum())
+                    float(tmp)
+                    return True
+                except ValueError:
+                    return False
+
+            if s.isupper():
+                return '_CAP_TOTAL_'
+            elif s.istitle():
+                return '_CAP_PARTIAL_'
+            elif isnumber(s):
+                return '_NUM_'
             else:
-                s = ''.join(e for e in s if e.isalnum())
-                if s.isdigit():
-                    return '_NUM_'
-                elif s.istitle():
-                    return '_CAP_PARTIAL_'
-                elif all(w.isupper() for w in s):
-                    return '_CAP_TOTAL_'
+                if istime(s):
+                    return '_TIME_'
                 else:
-                    return '_RARE_'
+                    return '_OTHER_'
 
-        ext += '.pred'
-
-        with open(refresh(fext(eval_file.name, ext)), 'w') as output_file:
+        with open(refresh('6.txt'), 'w') as output_file:
             cache = []
             sentence = []
             raw_sentence = []
@@ -167,22 +189,5 @@ class ReparsedHMM(TrigramHMM):
             output_file.write('\n'.join(cache) + '\n')
 
 
-class ClippedHMM(TrigramHMM):
-    """
-    A ClippedHMM model, deliberate to find optimal counts for clipping.
-    """
-    def __init__(self, n=3, num_clip=5):
-        super(ClippedHMM, self).__init__(n=n)
-        self.num_clip = num_clip
-
-    def train(self, corpus_file):
-        super(ClippedHMM, self).train(corpus_file, self.num_clip)
-
-    def eval_model(self, eval_file, ext='trivit.clip{}'):
-        ext = ext.format(self.num_clip)
-        super(ClippedHMM, self).eval_model(eval_file, ext)
-
-
 if __name__ == '__main__':
     main(hmm_model=ReparsedHMM, num_clip=int(sys.argv[3]))
-    main(hmm_model=ClippedHMM, num_clip=int(sys.argv[3]))

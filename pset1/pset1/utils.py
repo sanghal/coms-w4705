@@ -1,3 +1,4 @@
+#!/usr/bin/python
 """Utilities to keep code clean.
 
 File: utils.py
@@ -6,6 +7,7 @@ Uni: hg2469
 Email: hang.gao@columbia.edu
 Created Date: 09/23/2017
 """
+
 from __future__ import print_function
 
 import sys

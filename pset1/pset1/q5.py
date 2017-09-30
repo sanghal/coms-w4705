@@ -1,3 +1,4 @@
+#!/usr/bin/python
 """Answer to Question 5
 
 File: q5.py
@@ -6,15 +7,14 @@ Uni: hg2469
 Email: hang.gao@columbia.edu
 Created Date: 09/23/2017
 """
-from __future__ import print_function
 
-import sys
+from __future__ import print_function
 
 from collections import defaultdict
 from math import log
 
 from q4 import NaiveHMM
-from utils import refresh, fext, main
+from utils import refresh, main
 
 
 class TrigramHMM(NaiveHMM):
@@ -43,7 +43,7 @@ class TrigramHMM(NaiveHMM):
             self.ngram_ml[ngram] = count * 1. / \
                 self.ngram_counts[self.n - 2][w_rest]
 
-    def enumerate_trigram(self, fout=open('ner_train.trigram', 'w')):
+    def enumerate_trigram(self, fout=open('trigrams.txt', 'w')):
         """
         Enumerate possible trigrams in the training corpus.
         Write result into out stream `fout`.
@@ -59,25 +59,23 @@ class TrigramHMM(NaiveHMM):
         fout.write('\n'.join(lines))
         fout.close()
 
-    def eval_trigram_ml(self,
-                        trigram_file=open('ner_train.trigram'),
-                        fout=sys.stdout):
+    def eval_trigram_ml(self, trigram_file=open('trigrams.txt')):
         """
         Evaluate trigram max-likelihood parameters given an input trigram file
         stream.
-        Write result into out stream `fout`.
+        Write result into file  `5_1.txt`.
 
             :trigram_file: input trigram file steam.
-            :fout: output file stream.
         """
         liter = trigram_file.readline()
-        while(liter):
-            w, u, v = liter.strip().split(' ')
-            fout.write('{} {} {} {}'.format(
-                w, u, v, log(self.ngram_ml[(w, u, v)])))
-            liter = trigram_file.readline()
-            if liter:
-                fout.write('\n')
+        with open('5_1.txt', 'w') as fout:
+            while(liter):
+                w, u, v = liter.strip().split(' ')
+                fout.write('{} {} {} {}'.format(
+                    w, u, v, log(self.ngram_ml[(w, u, v)])))
+                liter = trigram_file.readline()
+                if liter:
+                    fout.write('\n')
 
         trigram_file.close()
 
@@ -140,17 +138,15 @@ class TrigramHMM(NaiveHMM):
         return ret_tags[2:], \
             [pi[(i, ret_tags[i + 1], ret_tags[i + 2])] for i in range(n)]
 
-    def eval_model(self, eval_file, ext='trivit'):
+    def eval_model(self, eval_file):
         """
         Evaluate HMM model based on evaluation file.
-        Write predict result into `*.trivit.pred`.
+        Write predict result into `5_2.txt`.
 
             :eval_file: input file stream of testing corpus.
-            :ext: output file extension or indicator.
         """
-        ext += '.pred'
-
-        with open(refresh(fext(eval_file.name, ext)), 'w') as output_file:
+        # Hardcode filename instead.
+        with open(refresh('5_2.txt'), 'w') as output_file:
             cache = []
             sentence = []
             raw_sentence = []

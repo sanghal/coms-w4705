@@ -1,41 +1,42 @@
 #!/bin/bash
+: '
+A shortcut for executing all scripts.
+    I finished this part before the instruction post, and finally decide to
+    keep it, since this is my original deliberated workflow and should yield
+    the most computational efficiency.
+Usage:
+    ./run [ q4 / q5 / q6 ]
+'
 
 TRAIN_FILE="ner_train.dat"
 DEV_FILE="ner_dev.dat"
 DEV_KEY="ner_dev.key"
 
-LOG_Q4="q4.log"
-LOG_Q5="q5.log"
-LOG_Q6="q6.log"
+LOG_Q4="log/q4.log"
+LOG_Q5="log/q5.log"
+LOG_Q6="log/q6.log"
 
 
 if [ $1 == "q4" ]; then
-    dev_pred="ner_dev.baseline.pred"
+    dev_pred="4_2.txt"
     python2 q4.py $TRAIN_FILE $DEV_FILE
     python2 eval_ne_tagger.py $DEV_KEY $dev_pred > $LOG_Q4
     echo "Done. Please check $LOG_Q4 for evaluation."
 
 elif [ $1 == "q5" ]; then
-    dev_pred="ner_dev.trivit.pred"
+    dev_pred="5_2.txt"
     python2 q5.py $TRAIN_FILE $DEV_FILE
     python2 eval_ne_tagger.py $DEV_KEY $dev_pred > $LOG_Q5
     echo "Done. Please check $LOG_Q5 for evaluation."
 
 elif [ $1 == "q6" ]; then
-
-    if [ -f $LOG_Q6 ]; then
-        rm $LOG_Q6
-    fi
-
-    for num_clip in {3..10}; do
-        dev_pred=$(printf "ner_dev.trivit.clip%d.pred" $num_clip)
-        python2 q6.py $TRAIN_FILE $DEV_FILE $num_clip
-        echo "$num_clip \r\n" >> $LOG_Q6
-        python2 eval_ne_tagger.py $DEV_KEY $dev_pred >> $LOG_Q6
-    done
+    dev_pred="6.txt"
+    python2 q5.py $TRAIN_FILE $DEV_FILE
+    python2 eval_ne_tagger.py $DEV_KEY $dev_pred > $LOG_Q6
+    echo "Done. Please check $LOG_Q6 for evaluation."
 
 else
-    echo "Invalid argument. [args: (q4/q5/q6)]" 1>&2
+    echo "Invalid argument: please specify from [ q4 / q5 / q6 ]" 1>&2
     exit 1
 fi
 
