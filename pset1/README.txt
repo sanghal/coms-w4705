@@ -1,7 +1,7 @@
 COMS W4705 PSET #1
 ------------------
 
-- Hang Gao (uni: 2469)
+- Hang Gao (UNI: 2469)
 - Email: [hang.gao@columbia.edu](mailto:hang.gao@columbia.edu)
 - Date: Sep 24, 2017
 
