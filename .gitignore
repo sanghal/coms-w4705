@@ -1,5 +1,10 @@
-**/*.pyc
 .DS_Store
-**/__pycache__
+
+*.pyc
+__pycache__
+.ipynb_checkpoints/
 
 *.txt
+!README.txt
+
+*.model
